@@ -23,12 +23,13 @@ public class Candidate {
     @Column(nullable = false)
     private String party;
 
-    @Column(nullable = false)
+    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String symbol;
 
     @Column(columnDefinition = "TEXT")
     private String manifesto;
 
+    @Column(columnDefinition = "LONGTEXT")
     private String profileImage;
 
     private LocalDateTime createdAt;

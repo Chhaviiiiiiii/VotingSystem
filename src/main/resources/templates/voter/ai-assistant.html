@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Voting Assistant | Online Voting System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+    <div class="container-fluid">
+        <a class="navbar-brand" th:href="@{/voter/dashboard}">Online Voting Panel</a>
+        <div class="d-flex">
+            <a th:href="@{/voter/dashboard}" class="btn btn-outline-light btn-sm me-2">Dashboard</a>
+            <form th:action="@{/logout}" method="post" class="d-inline">
+                <button type="submit" class="btn btn-outline-light btn-sm">Logout</button>
+            </form>
+        </div>
+    </div>
+</nav>
+
+<div class="container mt-4">
+    <div class="row justify-content-center">
+        <div class="col-md-8">
+            <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white">AI Voting Assistant</div>
+                <div class="card-body" style="height: 400px; overflow-y: auto;" id="chatArea">
+                    <div class="mb-3">
+                        <div class="p-3 bg-light rounded text-muted">
+                            Hello! I am your AI Voting Assistant. You can ask me how to vote, active election status, or queries about candidate manifestos. I will answer neutrally!
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-white border-0">
+                    <form id="chatForm">
+                        <div class="input-group">
+                            <input type="text" id="chatMessage" class="form-control" placeholder="Ask your question here..." required>
+                            <button type="submit" class="btn btn-primary">Send</button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('chatForm').addEventListener('submit', function (e) {
+        e.preventDefault();
+        const input = document.getElementById('chatMessage');
+        const message = input.value.trim();
+        if (!message) return;
+
+        const chatArea = document.getElementById('chatArea');
+        
+        // Append user message
+        const userDiv = document.createElement('div');
+        userDiv.className = 'mb-3 text-end';
+        userDiv.innerHTML = `<div class="d-inline-block p-3 bg-primary text-white rounded">${message}</div>`;
+        chatArea.appendChild(userDiv);
+        input.value = '';
+        chatArea.scrollTop = chatArea.scrollHeight;
+
+        // Fetch AI response
+        fetch('/ai/chat', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                // Include CSRF Token from Thymeleaf if required, but for simple GET/POST with permitted auth we can pass param
+                'X-CSRF-TOKEN': document.querySelector('input[name="_csrf"]')?.value || ""
+            },
+            body: new URLSearchParams({ message: message })
+        })
+        .then(res => res.text())
+        .then(data => {
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'mb-3';
+            aiDiv.innerHTML = `<div class="d-inline-block p-3 bg-light rounded">${data}</div>`;
+            chatArea.appendChild(aiDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        })
+        .catch(err => {
+            const aiDiv = document.createElement('div');
+            aiDiv.className = 'mb-3';
+            aiDiv.innerHTML = `<div class="d-inline-block p-3 bg-danger text-white rounded">Failed to connect to assistant.</div>`;
+            chatArea.appendChild(aiDiv);
+            chatArea.scrollTop = chatArea.scrollHeight;
+        });
+    });
+</script>
+</body>
+</html>

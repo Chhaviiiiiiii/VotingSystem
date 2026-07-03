@@ -9,6 +9,12 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Past;
+import jakarta.validation.constraints.Pattern;
+import jakarta.validation.constraints.Size;
 
 @Entity
 @Table(name = "users")
@@ -18,21 +24,47 @@ public class User {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Full name is required")
+    @Size(
+        min = 3,
+        max = 50,
+        message = "Full name must be between 3 and 50 characters"
+    )
     @Column(nullable = false)
     private String fullName;
 
+    @NotBlank(message = "Email is required")
+    @Email(message = "Enter a valid email address")
     @Column(nullable = false, unique = true)
     private String email;
 
+    @NotBlank(message = "Password is required")
+    @Size(
+        min = 8,
+        max = 100,
+        message = "Password must contain at least 8 characters"
+    )
     @Column(nullable = false)
     private String password;
 
+    @NotBlank(message = "Mobile number is required")
+    @Pattern(
+        regexp = "^[6-9][0-9]{9}$",
+        message = "Enter a valid 10 digit mobile number"
+    )
     @Column(nullable = false, unique = true)
     private String mobile;
 
+    @NotBlank(message = "Voter ID is required")
+    @Pattern(
+        regexp = "^[A-Z]{3}[0-9]{7}$",
+        message = "Voter ID must contain 3 uppercase letters followed by 7 digits"
+    )
     @Column(nullable = false, unique = true)
     private String voterId;
 
+    @NotNull(message = "Date of birth is required")
+    @Past(message = "Date of birth must be in the past")
     @Column(nullable = false)
     private LocalDate dateOfBirth;
 
@@ -48,6 +80,7 @@ public class User {
     @Column(nullable = false)
     private boolean accountLocked;
 
+    @Column(nullable = false)
     private int failedLoginAttempts;
 
     private LocalDateTime lockTime;
@@ -57,20 +90,38 @@ public class User {
     @Column(nullable = false)
     private String status;
 
+    @Column(columnDefinition = "LONGTEXT")
     private String profileImage;
 
+    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
 
+    private LocalDateTime verificationTokenExpiry;
+
     public User() {
     }
 
-    public User(Long id, String fullName, String email, String password, String mobile, String voterId,
-            LocalDate dateOfBirth, String role, boolean hasVoted, boolean emailVerified,
-            boolean accountLocked, int failedLoginAttempts, LocalDateTime lockTime,
-            String verificationToken, String status, String profileImage,
-            LocalDateTime createdAt, LocalDateTime updatedAt) {
+    public User(
+            Long id,
+            String fullName,
+            String email,
+            String password,
+            String mobile,
+            String voterId,
+            LocalDate dateOfBirth,
+            String role,
+            boolean hasVoted,
+            boolean emailVerified,
+            boolean accountLocked,
+            int failedLoginAttempts,
+            LocalDateTime lockTime,
+            String verificationToken,
+            String status,
+            String profileImage,
+            LocalDateTime createdAt,
+            LocalDateTime updatedAt) {
 
         this.id = id;
         this.fullName = fullName;
@@ -236,10 +287,23 @@ public class User {
         this.updatedAt = updatedAt;
     }
 
+    public LocalDateTime getVerificationTokenExpiry() {
+        return verificationTokenExpiry;
+    }
+
+    public void setVerificationTokenExpiry(LocalDateTime verificationTokenExpiry) {
+        this.verificationTokenExpiry = verificationTokenExpiry;
+    }
+
     @Override
     public String toString() {
-        return "User [id=" + id + ", fullName=" + fullName + ", email=" + email +
-                ", mobile=" + mobile + ", voterId=" + voterId + ", role=" + role +
-                ", hasVoted=" + hasVoted + "]";
+        return "User [id=" + id
+                + ", fullName=" + fullName
+                + ", email=" + email
+                + ", mobile=" + mobile
+                + ", voterId=" + voterId
+                + ", role=" + role
+                + ", hasVoted=" + hasVoted
+                + "]";
     }
 }
