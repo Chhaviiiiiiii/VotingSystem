@@ -100,7 +100,12 @@ public class AuthController {
             if (session != null) {
                 Object lastException = session.getAttribute("SPRING_SECURITY_LAST_EXCEPTION");
                 if (lastException instanceof org.springframework.security.core.AuthenticationException) {
-                    errorMessage = ((org.springframework.security.core.AuthenticationException) lastException).getMessage();
+                    String exceptionMessage = ((org.springframework.security.core.AuthenticationException) lastException).getMessage();
+                    if ("Bad credentials".equalsIgnoreCase(exceptionMessage)) {
+                        errorMessage = "Invalid email or password.";
+                    } else {
+                        errorMessage = exceptionMessage;
+                    }
                 }
             }
             model.addAttribute("error", errorMessage);

@@ -25,7 +25,7 @@ public class CandidateController {
 
     private final CandidateRepository candidateRepository;
     private final GeminiClient geminiClient;
-    private final Map<Long, String> manifestoSummaryCache = new HashMap<>();
+    private final Map<String, String> manifestoSummaryCache = new HashMap<>();
 
     public CandidateController(CandidateRepository candidateRepository, GeminiClient geminiClient) {
         this.candidateRepository = candidateRepository;
@@ -137,7 +137,7 @@ public class CandidateController {
         candidateRepository.save(candidate);
 
         // Evict AI cache on update
-        manifestoSummaryCache.remove(id);
+        manifestoSummaryCache.keySet().removeIf(key -> key.startsWith(id + "_"));
 
         return "redirect:/admin/candidates";
     }
@@ -166,27 +166,85 @@ public class CandidateController {
     }
 
     @GetMapping("/voter/candidates/{id}")
-    public String voterCandidateDetails(@PathVariable Long id, Model model) {
+    public String voterCandidateDetails(
+            @PathVariable Long id,
+            @RequestParam(value = "lang", required = false, defaultValue = "en") String lang,
+            Model model) {
         Candidate candidate = candidateRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Candidate not found"));
 
         model.addAttribute("candidate", candidate);
+        model.addAttribute("currentLang", lang);
+
+        String cacheKey = id + "_" + lang;
 
         // Retrieve or generate manifesto AI summary
-        String summary = manifestoSummaryCache.computeIfAbsent(id, cid -> {
+        String summary = manifestoSummaryCache.computeIfAbsent(cacheKey, key -> {
             String manifesto = candidate.getManifesto();
             if (manifesto == null || manifesto.trim().isEmpty()) {
-                return "No manifesto provided by the candidate.";
+                return getLocalizedNoManifestoMessage(lang);
             }
             if (manifesto.length() > 5000) {
-                return "Manifesto is too long for AI summary.";
+                return getLocalizedManifestoTooLongMessage(lang);
             }
 
-            String sysInstruction = "Summarize the provided candidate manifesto neutrally. Highlight the main stated promises and policy areas. Do not endorse, rank, compare, or recommend the candidate.";
-            return geminiClient.generateContent(sysInstruction, manifesto);
+            String langName = getLanguageName(lang);
+            String sysInstruction = "Summarize the provided candidate manifesto neutrally in " + langName + " language. "
+                    + "Highlight the main stated promises and policy areas. Do not endorse, rank, compare, or recommend the candidate. "
+                    + "Please reply entirely in " + langName + " language using its native script.";
+            
+            return geminiClient.generateContent(sysInstruction, manifesto, lang);
         });
 
         model.addAttribute("summary", summary);
         return "voter/candidate-details";
+    }
+
+    private String getLanguageName(String langCode) {
+        switch (langCode.toLowerCase()) {
+            case "hi": return "Hindi";
+            case "bn": return "Bengali";
+            case "te": return "Telugu";
+            case "ta": return "Tamil";
+            case "mr": return "Marathi";
+            case "gu": return "Gujarati";
+            case "kn": return "Kannada";
+            case "ml": return "Malayalam";
+            case "pa": return "Punjabi";
+            case "or": return "Odia";
+            default: return "English";
+        }
+    }
+
+    private String getLocalizedNoManifestoMessage(String lang) {
+        switch (lang.toLowerCase()) {
+            case "hi": return "उम्मीदवार द्वारा कोई घोषणापत्र प्रदान नहीं किया गया।";
+            case "bn": return "প্রার্থীর কোনো ইশতেহার দেওয়া হয়নি।";
+            case "te": return "అభ్యర్థి ద్వారా ఎలాంటి మేనిఫెస్టో అందించబడలేదు.";
+            case "ta": return "வேட்பாளரால் தேர்தல் அறிக்கை எதுவும் வழங்கப்படவில்லை.";
+            case "mr": return "उमेदवाराकडून कोणताही जाहीरनामा सादर केलेला नाही.";
+            case "gu": return "ઉમેદવાર દ્વારા કોઈ ઢંઢેરો આપવામાં આવ્યો નથી.";
+            case "kn": return "ಅಭ್ಯರ್ಥಿಯಿಂದ ಯಾವುದೇ ಪ್ರಣಾಳಿಕೆಯನ್ನು ಒದಗಿಸಲಾಗಿಲ್ಲ.";
+            case "ml": return "സ്ഥാനാർത്ഥി മാനിഫെസ്റ്റോയൊന്നും നൽകിയിട്ടില്ല.";
+            case "pa": return "ਉਮੀਦਵਾਰ ਵੱਲੋਂ ਕੋਈ ਮਨੋਰਥ ਪੱਤਰ ਨਹੀਂ ਦਿੱਤਾ ਗਿਆ।";
+            case "or": return "ପ୍ରାର୍ଥୀଙ୍କ ଦ୍ୱାରା କୌଣସି ଇସ୍ତାହାର ଦିଆଯାଇ ନାହିଁ।";
+            default: return "No manifesto provided by the candidate.";
+        }
+    }
+
+    private String getLocalizedManifestoTooLongMessage(String lang) {
+        switch (lang.toLowerCase()) {
+            case "hi": return "घोषणापत्र AI सारांश के लिए बहुत लंबा है।";
+            case "bn": return "ইশতেহারটি এআই সারসংক্ষেপের জন্য খুব দীর্ঘ।";
+            case "te": return "మేనిఫెస్టో AI సారాంశం కోసం చాలా పొడవుగా ఉంది.";
+            case "ta": return "தேர்தல் அறிக்கை AI சுருக்கத்திற்கு மிகவும் நீளமாக உள்ளது.";
+            case "mr": return "जाहीरनामा AI सारांशसाठी खूप मोठा आहे.";
+            case "gu": return "ઢંઢેરો AI સારાંશ માટે ખૂબ લાંબો છે.";
+            case "kn": return "ಪ್ರಣಾಳಿಕೆಯು AI ಸಾರಾಂಶಕ್ಕಾಗಿ ತುಂಬಾ ಉದ್ದವಾಗಿದೆ.";
+            case "ml": return "മാനിഫെസ്റ്റോ AI സംഗ്രഹത്തിന് വളരെ ദൈർഘ്യമുള്ളതാണ്.";
+            case "pa": return "ਮਨੋਰਥ ਪੱਤਰ AI ਸਾਰਾਂਸ਼ ਲਈ ਬਹੁਤ ਲੰਮਾ ਹੈ।";
+            case "or": return "ଇସ୍ତାହାରଟି AI ସାରାଂଶ ପାଇଁ ଅତି ଦୀର୍ଘ ଅଟେ।";
+            default: return "Manifesto is too long for AI summary.";
+        }
     }
 }

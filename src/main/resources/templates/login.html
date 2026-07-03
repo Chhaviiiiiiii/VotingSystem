@@ -16,14 +16,6 @@
                     <div class="card-body p-4">
                         <h2 class="text-center mb-4">Login</h2>
 
-                        <div th:if="${param.error}" class="alert alert-danger"
-                            th:text="${session.SPRING_SECURITY_LAST_EXCEPTION != null ? session.SPRING_SECURITY_LAST_EXCEPTION.message : 'Invalid email or password.'}">
-                        </div>
-
-                        <div th:if="${param.logout}" class="alert alert-success">
-                            You have been logged out successfully.
-                        </div>
-
                         <div th:if="${success}" class="alert alert-success" th:text="${success}">
                         </div>
                         <div th:if="${error}" class="alert alert-danger" th:text="${error}">

@@ -33,8 +33,26 @@
             </div>
 
             <div class="mb-4">
-                <h5 class="text-primary">AI Manifesto Neutral Summary</h5>
-                <p class="p-3 border border-primary bg-white rounded" th:text="${summary}"></p>
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h5 class="text-primary mb-0">AI Manifesto Neutral Summary</h5>
+                    <div class="d-flex align-items-center">
+                        <label for="langSelect" class="me-2 text-muted mb-0" style="font-size: 0.9rem;">Language:</label>
+                        <select id="langSelect" class="form-select form-select-sm" style="width: auto;" onchange="location = this.value;">
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='en')}" th:selected="${currentLang == 'en'}">English</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='hi')}" th:selected="${currentLang == 'hi'}">हिन्दी (Hindi)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='bn')}" th:selected="${currentLang == 'bn'}">বাংলা (Bengali)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='te')}" th:selected="${currentLang == 'te'}">తెలుగు (Telugu)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='ta')}" th:selected="${currentLang == 'ta'}">தமிழ் (Tamil)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='mr')}" th:selected="${currentLang == 'mr'}">मराठी (Marathi)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='gu')}" th:selected="${currentLang == 'gu'}">ગુજરાતી (Gujarati)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='kn')}" th:selected="${currentLang == 'kn'}">ಕನ್ನಡ (Kannada)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='ml')}" th:selected="${currentLang == 'ml'}">മലയാളം (Malayalam)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='pa')}" th:selected="${currentLang == 'pa'}">ਪੰਜਾਬੀ (Punjabi)</option>
+                            <option th:value="@{'/voter/candidates/' + ${candidate.id}(lang='or')}" th:selected="${currentLang == 'or'}">ଓଡ଼ିଆ (Odia)</option>
+                        </select>
+                    </div>
+                </div>
+                <p class="p-3 border border-primary bg-white rounded" style="white-space: pre-line;" th:text="${summary}"></p>
             </div>
         </div>
     </div>
