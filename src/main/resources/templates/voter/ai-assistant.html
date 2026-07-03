@@ -22,8 +22,26 @@
 <div class="container mt-4">
     <div class="row justify-content-center">
         <div class="col-md-8">
-            <div class="card shadow border-0">
-                <div class="card-header bg-primary text-white">AI Voting Assistant</div>
+             <div class="card shadow border-0">
+                <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+                    <span>AI Voting Assistant</span>
+                    <div class="d-flex align-items-center">
+                        <label for="langSelect" class="text-white me-2 mb-0" style="font-size: 0.85rem;">Language:</label>
+                        <select id="langSelect" class="form-select form-select-sm" style="width: auto;">
+                            <option value="en" selected>English</option>
+                            <option value="hi">हिन्दी (Hindi)</option>
+                            <option value="bn">বাংলা (Bengali)</option>
+                            <option value="te">తెలుగు (Telugu)</option>
+                            <option value="ta">தமிழ் (Tamil)</option>
+                            <option value="mr">मराठी (Marathi)</option>
+                            <option value="gu">ગુજરાતી (Gujarati)</option>
+                            <option value="kn">ಕನ್ನಡ (Kannada)</option>
+                            <option value="ml">മലയാളം (Malayalam)</option>
+                            <option value="pa">ਪੰਜਾਬੀ (Punjabi)</option>
+                            <option value="or">ଓଡ଼ିଆ (Odia)</option>
+                        </select>
+                    </div>
+                </div>
                 <div class="card-body" style="height: 400px; overflow-y: auto;" id="chatArea">
                     <div class="mb-3">
                         <div class="p-3 bg-light rounded text-muted">
@@ -35,6 +53,9 @@
                     <form id="chatForm">
                         <div class="input-group">
                             <input type="text" id="chatMessage" class="form-control" placeholder="Ask your question here..." required>
+                            <button type="button" id="micBtn" class="btn btn-outline-secondary" title="Speak to ask question">
+                                🎤
+                            </button>
                             <button type="submit" class="btn btn-primary">Send</button>
                         </div>
                     </form>
@@ -45,9 +66,71 @@
 </div>
 
 <script>
+    const langLocales = {
+        'en': 'en-IN',
+        'hi': 'hi-IN',
+        'bn': 'bn-IN',
+        'te': 'te-IN',
+        'ta': 'ta-IN',
+        'mr': 'mr-IN',
+        'gu': 'gu-IN',
+        'kn': 'kn-IN',
+        'ml': 'ml-IN',
+        'pa': 'pa-IN',
+        'or': 'or-IN'
+    };
+
+    const micBtn = document.getElementById('micBtn');
+    const input = document.getElementById('chatMessage');
+    const langSelect = document.getElementById('langSelect');
+
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        let recognition = new SpeechRecognition();
+        recognition.continuous = false;
+        recognition.interimResults = false;
+
+        recognition.onstart = function() {
+            micBtn.innerHTML = '🔴 Listening...';
+            micBtn.classList.remove('btn-outline-secondary');
+            micBtn.classList.add('btn-danger', 'text-white');
+        };
+
+        recognition.onerror = function(event) {
+            console.error(event.error);
+            resetMicBtn();
+        };
+
+        recognition.onend = function() {
+            resetMicBtn();
+        };
+
+        recognition.onresult = function(event) {
+            const transcript = event.results[0][0].transcript;
+            input.value = transcript;
+        };
+
+        micBtn.addEventListener('click', function() {
+            const selectedLang = langSelect.value;
+            recognition.lang = langLocales[selectedLang] || 'en-IN';
+            try {
+                recognition.start();
+            } catch (e) {
+                recognition.stop();
+            }
+        });
+    } else {
+        micBtn.style.display = 'none'; // hide if browser lacks speech support
+    }
+
+    function resetMicBtn() {
+        micBtn.innerHTML = '🎤';
+        micBtn.classList.remove('btn-danger', 'text-white');
+        micBtn.classList.add('btn-outline-secondary');
+    }
+
     document.getElementById('chatForm').addEventListener('submit', function (e) {
         e.preventDefault();
-        const input = document.getElementById('chatMessage');
         const message = input.value.trim();
         if (!message) return;
 
@@ -66,16 +149,18 @@
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
-                // Include CSRF Token from Thymeleaf if required, but for simple GET/POST with permitted auth we can pass param
                 'X-CSRF-TOKEN': document.querySelector('input[name="_csrf"]')?.value || ""
             },
-            body: new URLSearchParams({ message: message })
+            body: new URLSearchParams({ 
+                message: message,
+                lang: langSelect.value
+            })
         })
         .then(res => res.text())
         .then(data => {
             const aiDiv = document.createElement('div');
             aiDiv.className = 'mb-3';
-            aiDiv.innerHTML = `<div class="d-inline-block p-3 bg-light rounded">${data}</div>`;
+            aiDiv.innerHTML = `<div class="d-inline-block p-3 bg-light rounded" style="white-space: pre-line;">${data}</div>`;
             chatArea.appendChild(aiDiv);
             chatArea.scrollTop = chatArea.scrollHeight;
         })

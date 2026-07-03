@@ -24,17 +24,10 @@ public class GeminiClient {
     @SuppressWarnings("unchecked")
     public String generateContent(String systemInstruction, String prompt, String lang) {
         if (apiKey == null || apiKey.trim().isEmpty()) {
-            if (systemInstruction != null && systemInstruction.toLowerCase().contains("manifesto")) {
+            if (systemInstruction != null && systemInstruction.toLowerCase().contains("summarize the provided candidate manifesto")) {
                 return generateLocalFallbackSummary(prompt, lang);
             }
-            if ("hi".equalsIgnoreCase(lang)) {
-                return "मैं वर्तमान में ऑफ़लाइन मोड में काम कर रहा हूँ क्योंकि Gemini API key कॉन्फ़िगर नहीं है।\n\n"
-                     + "अपना वोट डालने के लिए: अपने डैशबोर्ड पर 'Cast Vote' पर जाएं, अपने उम्मीदवार को चुनें और 'Submit Vote' पर क्लिक करें।\n"
-                     + "पूर्ण संवादात्मक चैट समर्थन के लिए कृपया अपने सिस्टम एडमिनिस्ट्रेटर से 'application.properties' में 'gemini.api.key' कॉन्फ़िगर करने के लिए कहें।";
-            }
-            return "I am currently operating in offline mode because the Gemini API key is not configured.\n\n"
-                 + "To cast your vote: navigate to 'Cast Vote' on your dashboard, choose your candidate, and click 'Submit Vote'.\n"
-                 + "Please ask your system administrator to configure the 'gemini.api.key' in application.properties for full interactive chat support.";
+            return generateOfflineChatResponse(systemInstruction, prompt, lang);
         }
 
         String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=" + apiKey;
@@ -119,9 +112,9 @@ public class GeminiClient {
                     + targetLang + "&dt=t&q=" + java.net.URLEncoder.encode(text, "UTF-8");
             
             RestTemplate restTemplateForTranslation = new RestTemplate();
-            Object[] response = restTemplateForTranslation.getForObject(url, Object[].class);
-            if (response != null && response.length > 0) {
-                java.util.List<?> outerList = (java.util.List<?>) response[0];
+            java.util.List<?> response = restTemplateForTranslation.getForObject(url, java.util.List.class);
+            if (response != null && !response.isEmpty()) {
+                java.util.List<?> outerList = (java.util.List<?>) response.get(0);
                 StringBuilder translated = new StringBuilder();
                 for (Object item : outerList) {
                     java.util.List<?> innerList = (java.util.List<?>) item;
@@ -151,5 +144,48 @@ public class GeminiClient {
             case "or": return "ପ୍ରାର୍ଥୀଙ୍କ ଇସ୍ତାହାରରୁ ମୁଖ୍ୟ ଆକର୍ଷଣ:";
             default: return "Key highlights from the candidate's manifesto:";
         }
+    }
+
+    private String generateOfflineChatResponse(String systemInstruction, String userMessage, String lang) {
+        String englishMsg = translateText(userMessage, "en").toLowerCase();
+        String response = "";
+        
+        if (englishMsg.contains("last election") || englishMsg.contains("result") || englishMsg.contains("winner") || englishMsg.contains("past") || englishMsg.contains("closed") || englishMsg.contains("jeeta") || englishMsg.contains("pichla")) {
+            int start = systemInstruction.indexOf("Past Election Results:");
+            if (start != -1) {
+                response = systemInstruction.substring(start);
+            } else {
+                response = "No past election results are currently available.";
+            }
+        } else if (englishMsg.contains("election") || englishMsg.contains("poll") || englishMsg.contains("chunav") || englishMsg.contains("chal raha")) {
+            if (systemInstruction.contains("Active Election exists: Yes")) {
+                int start = systemInstruction.indexOf("title: ") + 7;
+                int end = systemInstruction.indexOf("\n", start);
+                String title = systemInstruction.substring(start, end);
+                response = "Currently, there is an active election: \"" + title + "\".";
+            } else {
+                response = "Currently, there are no active elections.";
+            }
+        } else if (englishMsg.contains("candidate") || englishMsg.contains("ummeedwar") || englishMsg.contains("party") || englishMsg.contains("neta") || englishMsg.contains("list")) {
+            int start = systemInstruction.indexOf("Available candidates: ") + 22;
+            int end = systemInstruction.indexOf("\n", start);
+            String candidates = systemInstruction.substring(start, end);
+            if (candidates.trim().isEmpty() || candidates.equalsIgnoreCase("None")) {
+                response = "There are no candidates registered for the current election.";
+            } else {
+                response = "The registered candidates for the election are: " + candidates;
+            }
+        } else if (englishMsg.contains("how to vote") || englishMsg.contains("vote kaise") || englishMsg.contains("process") || englishMsg.contains("tarika") || englishMsg.contains("voted")) {
+            response = "To cast your vote, please follow these steps:\n"
+                     + "1. Go to the 'Cast Vote' page on your dashboard.\n"
+                     + "2. Choose your preferred candidate.\n"
+                     + "3. Click the 'Submit Vote' button.";
+        } else if (englishMsg.contains("hello") || englishMsg.contains("hi") || englishMsg.contains("hey")) {
+            response = "Hello! I am your offline AI Voting Assistant. You can ask me about candidate manifestos, active elections, how to vote, or who the candidates are.";
+        } else {
+            response = "I am operating in offline mode. I can help you with active election status, voting process, and candidate information. For general queries, please configure the Gemini API key.";
+        }
+        
+        return translateText(response, lang);
     }
 }
