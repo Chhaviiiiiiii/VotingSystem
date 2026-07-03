@@ -79,7 +79,7 @@ public class ElectionController {
     }
 
     @PostMapping("/admin/elections/start/{id}")
-    public String startElection(@PathVariable Long id, Model model) {
+    public String startElection(@PathVariable String id, Model model) {
         boolean activeExists = electionRepository.existsByStatus("ACTIVE");
         if (activeExists) {
             model.addAttribute("error", "Another election is already active.");
@@ -108,7 +108,7 @@ public class ElectionController {
     }
 
     @PostMapping("/admin/elections/end/{id}")
-    public String endElection(@PathVariable Long id) {
+    public String endElection(@PathVariable String id) {
         Election election = electionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Election not found"));
 

@@ -141,7 +141,7 @@ public class AdminController {
     }
 
     @PostMapping("/admin/users/toggle-status/{id}")
-    public String toggleUserStatus(@PathVariable Long id) {
+    public String toggleUserStatus(@PathVariable String id) {
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
 
@@ -188,7 +188,7 @@ public class AdminController {
     }
 
     @GetMapping("/admin/results/{id}")
-    public String viewResults(@PathVariable Long id, Model model) {
+    public String viewResults(@PathVariable String id, Model model) {
         Election election = electionRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Election not found"));
 

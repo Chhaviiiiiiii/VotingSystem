@@ -199,7 +199,7 @@ public class VoterController {
     @PostMapping("/voter/vote")
     public String submitVote(
             Principal principal,
-            @RequestParam Long candidateId,
+            @RequestParam String candidateId,
             Model model) {
 
         try {
@@ -249,7 +249,7 @@ public class VoterController {
         model.addAttribute("closedElections", closedElections);
 
         // Fetching candidate-wise vote calculation for the closed elections
-        Map<Long, List<Map<String, Object>>> electionResultsMap = new HashMap<>();
+        Map<String, List<Map<String, Object>>> electionResultsMap = new HashMap<>();
         for (Election election : closedElections) {
             List<Candidate> candidates = candidateRepository.findAll();
             long totalVotes = voteRepository.countByElectionId(election.getId());

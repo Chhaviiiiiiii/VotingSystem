@@ -10,8 +10,6 @@ public interface UserDao {
 
     Optional<User> findByEmail(String email);
 
-    Optional<User> findByVerificationToken(String token);
-
     boolean emailExists(String email);
 
     boolean mobileExists(String mobile);

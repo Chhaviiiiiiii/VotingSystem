@@ -5,7 +5,6 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.Period;
 import java.util.List;
-import java.util.UUID;
 import java.util.regex.Pattern;
 
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -98,8 +97,16 @@ public class AuthDaoImpl implements AuthDao {
         user.setAccountLocked(false);
         user.setFailedLoginAttempts(0);
         user.setLockTime(null);
-        user.setVerificationToken(UUID.randomUUID().toString());
-        user.setVerificationTokenExpiry(LocalDateTime.now().plusHours(24));
+
+        // Generate Registration verification OTP
+        SecureRandom random = new SecureRandom();
+        int otpNum = 100000 + random.nextInt(900000);
+        String otp = String.valueOf(otpNum);
+
+        user.setVerificationOtp(otp);
+        user.setVerificationOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        user.setVerificationOtpLastSent(LocalDateTime.now());
+
         user.setStatus("ACTIVE");
         user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
@@ -108,31 +115,75 @@ public class AuthDaoImpl implements AuthDao {
     }
 
     @Override
-    public boolean verifyEmail(String token) {
-        if (token == null || token.trim().isEmpty()) {
+    public boolean verifyEmailOtp(String email, String otp) {
+        System.out.println("[DEBUG] verifyEmailOtp - email: " + email + ", otp: " + otp);
+        if (email == null || otp == null || otp.trim().isEmpty()) {
             return false;
         }
 
-        User user = userDao.findByVerificationToken(token).orElse(null);
+        User user = userDao.findByEmail(email.trim().toLowerCase()).orElse(null);
         if (user == null) {
+            System.out.println("[DEBUG] verifyEmailOtp - User not found for email: " + email);
             return false;
         }
 
-        if (user.getVerificationTokenExpiry() != null && user.getVerificationTokenExpiry().isBefore(LocalDateTime.now())) {
-            user.setVerificationToken(null);
-            user.setVerificationTokenExpiry(null);
-            user.setUpdatedAt(LocalDateTime.now());
-            userDao.saveUser(user);
+        System.out.println("[DEBUG] verifyEmailOtp - emailVerified value before update: " + user.isEmailVerified());
+        if (user.isEmailVerified()) {
+            return true;
+        }
+
+        if (user.getVerificationOtp() == null || !user.getVerificationOtp().equals(otp.trim())) {
+            System.out.println("[DEBUG] verifyEmailOtp - OTP mismatch.");
+            return false;
+        }
+
+        if (user.getVerificationOtpExpiry() != null && user.getVerificationOtpExpiry().isBefore(LocalDateTime.now())) {
+            System.out.println("[DEBUG] verifyEmailOtp - OTP expired.");
             return false;
         }
 
         user.setEmailVerified(true);
-        user.setVerificationToken(null);
-        user.setVerificationTokenExpiry(null);
+        user.setVerificationOtp(null);
+        user.setVerificationOtpExpiry(null);
         user.setUpdatedAt(LocalDateTime.now());
 
-        userDao.saveUser(user);
+        User savedUser = userDao.saveUser(user);
+        System.out.println("[DEBUG] verifyEmailOtp - emailVerified value after save: " + savedUser.isEmailVerified());
         return true;
+    }
+
+    @Override
+    public void sendRegistrationOtp(String email) {
+        if (email == null || email.trim().isEmpty()) {
+            return;
+        }
+
+        User user = userDao.findByEmail(email.trim().toLowerCase())
+                .orElseThrow(() -> new IllegalArgumentException("User not found"));
+
+        if (user.isEmailVerified()) {
+            throw new IllegalArgumentException("Email is already verified.");
+        }
+
+        // Cooldown check (60 seconds)
+        if (user.getVerificationOtpLastSent() != null && 
+                user.getVerificationOtpLastSent().plusSeconds(60).isAfter(LocalDateTime.now())) {
+            throw new IllegalArgumentException("Please wait 60 seconds before requesting another OTP.");
+        }
+
+        // Generate new 6-digit OTP
+        SecureRandom random = new SecureRandom();
+        int otpNum = 100000 + random.nextInt(900000);
+        String otp = String.valueOf(otpNum);
+
+        user.setVerificationOtp(otp);
+        user.setVerificationOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        user.setVerificationOtpLastSent(LocalDateTime.now());
+        user.setUpdatedAt(LocalDateTime.now());
+        userDao.saveUser(user);
+
+        // Send new OTP email
+        emailService.sendRegistrationVerificationOtpEmail(user.getEmail(), otp);
     }
 
     @Override
@@ -142,12 +193,11 @@ public class AuthDaoImpl implements AuthDao {
         }
         User user = userDao.findByEmail(email.trim().toLowerCase()).orElse(null);
         if (user == null) {
-            // Generic message prevents account enumeration
             return;
         }
 
         // Cooldown check (60 seconds)
-        List<PasswordResetOtp> existingOtps = otpRepository.findByUser(user);
+        List<PasswordResetOtp> existingOtps = otpRepository.findByUserId(user.getId());
         for (PasswordResetOtp existing : existingOtps) {
             if (!existing.isUsed() && existing.getCreatedAt().plusSeconds(60).isAfter(LocalDateTime.now())) {
                 throw new IllegalArgumentException("Please wait 60 seconds before requesting another OTP.");
@@ -172,7 +222,7 @@ public class AuthDaoImpl implements AuthDao {
 
         // Save new OTP record
         PasswordResetOtp otpEntity = new PasswordResetOtp();
-        otpEntity.setUser(user);
+        otpEntity.setUserId(user.getId());
         otpEntity.setOtpHash(otpHash);
         otpEntity.setExpiryTime(LocalDateTime.now().plusMinutes(10));
         otpEntity.setUsed(false);
@@ -195,7 +245,7 @@ public class AuthDaoImpl implements AuthDao {
             return false;
         }
 
-        PasswordResetOtp otpEntity = otpRepository.findByUserAndUsedFalse(user).orElse(null);
+        PasswordResetOtp otpEntity = otpRepository.findByUserIdAndUsedFalse(user.getId()).orElse(null);
         if (otpEntity == null) {
             return false;
         }
@@ -236,7 +286,7 @@ public class AuthDaoImpl implements AuthDao {
             return false;
         }
 
-        PasswordResetOtp otpEntity = otpRepository.findByUserAndUsedFalse(user).orElse(null);
+        PasswordResetOtp otpEntity = otpRepository.findByUserIdAndUsedFalse(user.getId()).orElse(null);
         if (otpEntity == null) {
             return false;
         }

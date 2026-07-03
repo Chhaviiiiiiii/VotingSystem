@@ -6,7 +6,9 @@ public interface AuthDao {
 
     User registerUser(User user);
 
-    boolean verifyEmail(String token);
+    boolean verifyEmailOtp(String email, String otp);
+
+    void sendRegistrationOtp(String email);
 
     void requestPasswordReset(String email);
 

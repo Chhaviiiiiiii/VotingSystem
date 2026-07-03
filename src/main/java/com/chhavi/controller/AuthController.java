@@ -66,31 +66,50 @@ public class AuthController {
             }
 
             User savedUser = authDao.registerUser(user);
-            emailService.sendVerificationEmail(savedUser);
-            model.addAttribute("success", "Registration successful. Please verify your email.");
-            model.addAttribute("user", new User());
-            return "register";
+            emailService.sendRegistrationVerificationOtpEmail(savedUser.getEmail(), savedUser.getVerificationOtp());
+            return "redirect:/verify-email-otp?email=" + savedUser.getEmail();
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             return "register";
         }
     }
 
-    @GetMapping("/verify-email")
-    public String verifyEmail(@RequestParam String token, Model model) {
-        boolean verified = authDao.verifyEmail(token);
+    @GetMapping("/verify-email-otp")
+    public String showVerifyEmailOtpPage(@RequestParam String email, Model model) {
+        model.addAttribute("email", email);
+        return "verify-email-otp";
+    }
+
+    @PostMapping("/verify-email-otp")
+    public String verifyEmailOtp(@RequestParam String email, @RequestParam String otp, Model model) {
+        boolean verified = authDao.verifyEmailOtp(email, otp);
         if (verified) {
-            model.addAttribute("success", "Email verified successfully. You can now login.");
+            return "redirect:/login?verified=true";
         } else {
-            model.addAttribute("error", "Invalid or expired verification link.");
+            model.addAttribute("email", email);
+            model.addAttribute("error", "Invalid or expired OTP.");
+            return "verify-email-otp";
         }
-        return "login";
+    }
+
+    @PostMapping("/resend-verification-otp")
+    public String resendVerificationOtp(@RequestParam String email, Model model) {
+        try {
+            authDao.sendRegistrationOtp(email);
+            model.addAttribute("email", email);
+            model.addAttribute("success", "A new OTP has been sent to your email.");
+        } catch (IllegalArgumentException e) {
+            model.addAttribute("email", email);
+            model.addAttribute("error", e.getMessage());
+        }
+        return "verify-email-otp";
     }
 
     @GetMapping("/login")
     public String showLoginPage(
             @RequestParam(value = "error", required = false) String error,
             @RequestParam(value = "logout", required = false) String logout,
+            @RequestParam(value = "verified", required = false) String verified,
             HttpServletRequest request,
             Model model) {
 
@@ -112,6 +131,9 @@ public class AuthController {
         }
         if (logout != null) {
             model.addAttribute("success", "You have been logged out successfully.");
+        }
+        if (verified != null) {
+            model.addAttribute("success", "Email verified successfully. You can now login.");
         }
         return "login";
     }

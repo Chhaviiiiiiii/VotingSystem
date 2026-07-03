@@ -2,34 +2,23 @@ package com.chhavi.pojo;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
-@Table(name = "candidates")
+@Document(collection = "candidates")
 public class Candidate {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @Column(nullable = false)
     private String name;
 
-    @Column(nullable = false)
     private String party;
 
-    @Column(nullable = false, columnDefinition = "LONGTEXT")
     private String symbol;
 
-    @Column(columnDefinition = "TEXT")
     private String manifesto;
 
-    @Column(columnDefinition = "LONGTEXT")
     private String profileImage;
 
     private LocalDateTime createdAt;
@@ -39,7 +28,7 @@ public class Candidate {
     public Candidate() {
     }
 
-    public Candidate(Long id, String name, String party, String symbol, String manifesto,
+    public Candidate(String id, String name, String party, String symbol, String manifesto,
             String profileImage, LocalDateTime createdAt, LocalDateTime updatedAt) {
         this.id = id;
         this.name = name;
@@ -51,11 +40,11 @@ public class Candidate {
         this.updatedAt = updatedAt;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 

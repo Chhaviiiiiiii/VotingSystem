@@ -2,73 +2,64 @@ package com.chhavi.pojo;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
-@Table(name = "votes", uniqueConstraints = {
-    @UniqueConstraint(columnNames = {"user_id", "election_id"})
-})
+@Document(collection = "votes")
 public class Vote {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    private String userId;
 
-    @ManyToOne
-    @JoinColumn(name = "candidate_id")
-    private Candidate candidate;
+    private String candidateId;
 
-    @ManyToOne
-    @JoinColumn(name = "election_id")
-    private Election election;
+    private String electionId;
 
     private LocalDateTime voteTime;
 
     public Vote() {
     }
 
-    public Vote(Long id, User user, Candidate candidate, Election election, LocalDateTime voteTime) {
+    public Vote(String id, String userId, String candidateId, String electionId, LocalDateTime voteTime) {
         this.id = id;
-        this.user = user;
-        this.candidate = candidate;
-        this.election = election;
+        this.userId = userId;
+        this.candidateId = candidateId;
+        this.electionId = electionId;
         this.voteTime = voteTime;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public User getUser() {
-        return user;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
-    public Candidate getCandidate() {
-        return candidate;
+    public String getCandidateId() {
+        return candidateId;
     }
 
-    public void setCandidate(Candidate candidate) {
-        this.candidate = candidate;
+    public void setCandidateId(String candidateId) {
+        this.candidateId = candidateId;
     }
 
-    public Election getElection() {
-        return election;
+    public String getElectionId() {
+        return electionId;
     }
 
-    public void setElection(Election election) {
-        this.election = election;
+    public void setElectionId(String electionId) {
+        this.electionId = electionId;
     }
 
     public LocalDateTime getVoteTime() {

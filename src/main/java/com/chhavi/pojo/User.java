@@ -3,12 +3,9 @@ package com.chhavi.pojo;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.Table;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
@@ -16,13 +13,11 @@ import jakarta.validation.constraints.Past;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
 
-@Entity
-@Table(name = "users")
+@Document(collection = "users")
 public class User {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
     @NotBlank(message = "Full name is required")
     @Size(
@@ -30,12 +25,10 @@ public class User {
         max = 50,
         message = "Full name must be between 3 and 50 characters"
     )
-    @Column(nullable = false)
     private String fullName;
 
     @NotBlank(message = "Email is required")
     @Email(message = "Enter a valid email address")
-    @Column(nullable = false, unique = true)
     private String email;
 
     @NotBlank(message = "Password is required")
@@ -44,7 +37,6 @@ public class User {
         max = 100,
         message = "Password must contain at least 8 characters"
     )
-    @Column(nullable = false)
     private String password;
 
     @NotBlank(message = "Mobile number is required")
@@ -52,7 +44,6 @@ public class User {
         regexp = "^[6-9][0-9]{9}$",
         message = "Enter a valid 10 digit mobile number"
     )
-    @Column(nullable = false, unique = true)
     private String mobile;
 
     @NotBlank(message = "Voter ID is required")
@@ -60,51 +51,43 @@ public class User {
         regexp = "^[A-Z]{3}[0-9]{7}$",
         message = "Voter ID must contain 3 uppercase letters followed by 7 digits"
     )
-    @Column(nullable = false, unique = true)
     private String voterId;
 
     @NotNull(message = "Date of birth is required")
     @Past(message = "Date of birth must be in the past")
-    @Column(nullable = false)
     private LocalDate dateOfBirth;
 
-    @Column(nullable = false)
     private String role;
 
-    @Column(nullable = false)
     private boolean hasVoted;
 
-    @Column(nullable = false)
     private boolean emailVerified;
 
-    @Column(nullable = false)
     private boolean accountLocked;
 
-    @Column(nullable = false)
     private int failedLoginAttempts;
 
     private LocalDateTime lockTime;
 
-    private String verificationToken;
+    private String verificationOtp;
 
-    @Column(nullable = false)
+    private LocalDateTime verificationOtpExpiry;
+
+    private LocalDateTime verificationOtpLastSent;
+
     private String status;
 
-    @Column(columnDefinition = "LONGTEXT")
     private String profileImage;
 
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     private LocalDateTime updatedAt;
-
-    private LocalDateTime verificationTokenExpiry;
 
     public User() {
     }
 
     public User(
-            Long id,
+            String id,
             String fullName,
             String email,
             String password,
@@ -117,7 +100,9 @@ public class User {
             boolean accountLocked,
             int failedLoginAttempts,
             LocalDateTime lockTime,
-            String verificationToken,
+            String verificationOtp,
+            LocalDateTime verificationOtpExpiry,
+            LocalDateTime verificationOtpLastSent,
             String status,
             String profileImage,
             LocalDateTime createdAt,
@@ -136,18 +121,20 @@ public class User {
         this.accountLocked = accountLocked;
         this.failedLoginAttempts = failedLoginAttempts;
         this.lockTime = lockTime;
-        this.verificationToken = verificationToken;
+        this.verificationOtp = verificationOtp;
+        this.verificationOtpExpiry = verificationOtpExpiry;
+        this.verificationOtpLastSent = verificationOtpLastSent;
         this.status = status;
         this.profileImage = profileImage;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
@@ -247,12 +234,28 @@ public class User {
         this.lockTime = lockTime;
     }
 
-    public String getVerificationToken() {
-        return verificationToken;
+    public String getVerificationOtp() {
+        return verificationOtp;
     }
 
-    public void setVerificationToken(String verificationToken) {
-        this.verificationToken = verificationToken;
+    public void setVerificationOtp(String verificationOtp) {
+        this.verificationOtp = verificationOtp;
+    }
+
+    public LocalDateTime getVerificationOtpExpiry() {
+        return verificationOtpExpiry;
+    }
+
+    public void setVerificationOtpExpiry(LocalDateTime verificationOtpExpiry) {
+        this.verificationOtpExpiry = verificationOtpExpiry;
+    }
+
+    public LocalDateTime getVerificationOtpLastSent() {
+        return verificationOtpLastSent;
+    }
+
+    public void setVerificationOtpLastSent(LocalDateTime verificationOtpLastSent) {
+        this.verificationOtpLastSent = verificationOtpLastSent;
     }
 
     public String getStatus() {
@@ -285,14 +288,6 @@ public class User {
 
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
-    }
-
-    public LocalDateTime getVerificationTokenExpiry() {
-        return verificationTokenExpiry;
-    }
-
-    public void setVerificationTokenExpiry(LocalDateTime verificationTokenExpiry) {
-        this.verificationTokenExpiry = verificationTokenExpiry;
     }
 
     @Override

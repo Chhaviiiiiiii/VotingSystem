@@ -82,7 +82,7 @@ public class CandidateController {
     }
 
     @GetMapping("/admin/candidates/edit/{id}")
-    public String showEditCandidateForm(@PathVariable Long id, Model model) {
+    public String showEditCandidateForm(@PathVariable String id, Model model) {
         Candidate candidate = candidateRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("Candidate not found"));
 
@@ -100,7 +100,7 @@ public class CandidateController {
 
     @PostMapping("/admin/candidates/edit/{id}")
     public String updateCandidate(
-            @PathVariable Long id,
+            @PathVariable String id,
             @Valid @ModelAttribute("candidateDto") CandidateRequestDto dto,
             BindingResult result,
             @RequestParam(value = "symbolImageFile", required = false) org.springframework.web.multipart.MultipartFile symbolImageFile,
@@ -143,7 +143,7 @@ public class CandidateController {
     }
 
     @PostMapping("/admin/candidates/delete/{id}")
-    public String deleteCandidate(@PathVariable Long id) {
+    public String deleteCandidate(@PathVariable String id) {
         // Soft delete / remove implementation simple logic (can hard delete since constraints are not active yet, or just delete)
         try {
             candidateRepository.deleteById(id);
@@ -167,7 +167,7 @@ public class CandidateController {
 
     @GetMapping("/voter/candidates/{id}")
     public String voterCandidateDetails(
-            @PathVariable Long id,
+            @PathVariable String id,
             @RequestParam(value = "lang", required = false, defaultValue = "en") String lang,
             Model model) {
         Candidate candidate = candidateRepository.findById(id)

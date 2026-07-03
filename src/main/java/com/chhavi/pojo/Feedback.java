@@ -2,21 +2,17 @@ package com.chhavi.pojo;
 
 import java.time.LocalDateTime;
 
-import jakarta.persistence.*;
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
 
-@Entity
-@Table(name = "feedback")
+@Document(collection = "feedbacks")
 public class Feedback {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id")
-    private User user;
+    private String userId;
 
-    @Column(columnDefinition = "TEXT")
     private String message;
 
     private String aiStatus;
@@ -26,28 +22,28 @@ public class Feedback {
     public Feedback() {
     }
 
-    public Feedback(Long id, User user, String message, String aiStatus, LocalDateTime createdAt) {
+    public Feedback(String id, String userId, String message, String aiStatus, LocalDateTime createdAt) {
         this.id = id;
-        this.user = user;
+        this.userId = userId;
         this.message = message;
         this.aiStatus = aiStatus;
         this.createdAt = createdAt;
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public User getUser() {
-        return user;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getMessage() {

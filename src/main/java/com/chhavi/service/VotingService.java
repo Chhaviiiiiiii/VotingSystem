@@ -3,7 +3,6 @@ package com.chhavi.service;
 import java.time.LocalDateTime;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.chhavi.pojo.Candidate;
 import com.chhavi.pojo.Election;
@@ -33,8 +32,7 @@ public class VotingService {
         this.emailService = emailService;
     }
 
-    @Transactional
-    public void castVote(String email, Long candidateId) {
+    public void castVote(String email, String candidateId) {
         // 1. Load and verify user
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new IllegalArgumentException("User not found"));
@@ -66,9 +64,9 @@ public class VotingService {
 
         // 5. Cast vote
         Vote vote = new Vote();
-        vote.setUser(user);
-        vote.setCandidate(candidate);
-        vote.setElection(election);
+        vote.setUserId(user.getId());
+        vote.setCandidateId(candidate.getId());
+        vote.setElectionId(election.getId());
         vote.setVoteTime(LocalDateTime.now());
         voteRepository.save(vote);
 

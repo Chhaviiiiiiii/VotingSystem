@@ -1,59 +1,45 @@
 package com.chhavi.pojo;
 
 import java.time.LocalDateTime;
-import jakarta.persistence.Column;
-import jakarta.persistence.Entity;
-import jakarta.persistence.GeneratedValue;
-import jakarta.persistence.GenerationType;
-import jakarta.persistence.Id;
-import jakarta.persistence.JoinColumn;
-import jakarta.persistence.ManyToOne;
-import jakarta.persistence.Table;
 
-@Entity
-@Table(name = "password_reset_otps")
+import org.springframework.data.annotation.Id;
+import org.springframework.data.mongodb.core.mapping.Document;
+
+@Document(collection = "password_reset_otps")
 public class PasswordResetOtp {
 
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    private String id;
 
-    @ManyToOne
-    @JoinColumn(name = "user_id", nullable = false)
-    private User user;
+    private String userId;
 
-    @Column(nullable = false)
     private String otpHash;
 
-    @Column(nullable = false)
     private LocalDateTime expiryTime;
 
-    @Column(nullable = false)
     private boolean used;
 
-    @Column(nullable = false)
     private int attempts;
 
-    @Column(nullable = false)
     private LocalDateTime createdAt;
 
     public PasswordResetOtp() {
     }
 
-    public Long getId() {
+    public String getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(String id) {
         this.id = id;
     }
 
-    public User getUser() {
-        return user;
+    public String getUserId() {
+        return userId;
     }
 
-    public void setUser(User user) {
-        this.user = user;
+    public void setUserId(String userId) {
+        this.userId = userId;
     }
 
     public String getOtpHash() {

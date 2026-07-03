@@ -26,17 +26,16 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
-    public void sendVerificationEmail(User user) {
-        String token = user.getVerificationToken();
-        String verificationUrl = baseUrl + "/verify-email?token=" + token;
-        String subject = "Verify your email - AI Online Voting System";
-        String message = "Dear " + user.getFullName() + ",\n\n"
-                + "Thank you for registering. Please click the link below to verify your email address:\n"
-                + verificationUrl + "\n\n"
-                + "This link will expire in 24 hours.\n\n"
-                + "Best regards,\nOnline Voting System Team";
+    public void sendRegistrationVerificationOtpEmail(String email, String otp) {
+        System.out.println("[DEBUG] sendRegistrationVerificationOtpEmail - Sending registration OTP to " + email);
+        String subject = "Verify Your Email - AI Voting System";
+        String message = "Dear User,\n\n"
+                + "Thank you for registering. Your verification OTP is:\n\n"
+                + "   " + otp + "\n\n"
+                + "This OTP is valid for 10 minutes.\n\n"
+                + "Best regards,\nAI Voting System Team";
 
-        sendEmail(user.getEmail(), subject, message);
+        sendEmail(email, subject, message);
     }
 
     public void sendOtpEmail(String email, String otp) {

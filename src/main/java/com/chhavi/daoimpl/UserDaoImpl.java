@@ -28,11 +28,6 @@ public class UserDaoImpl implements UserDao {
     }
 
     @Override
-    public Optional<User> findByVerificationToken(String token) {
-        return userRepository.findByVerificationToken(token);
-    }
-
-    @Override
     public boolean emailExists(String email) {
         return userRepository.existsByEmail(email);
     }
