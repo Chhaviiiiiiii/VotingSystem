@@ -30,6 +30,9 @@ public class EmailService {
     @Value("${app.mail.dev-fallback:false}")
     private boolean devFallback;
 
+    @Value("${brevo.api.key:}")
+    private String brevoApiKey;
+
     public EmailService(JavaMailSender mailSender) {
         this.mailSender = mailSender;
     }
@@ -110,6 +113,11 @@ public class EmailService {
     }
 
     private void sendEmail(String to, String subject, String text) {
+        if (brevoApiKey != null && !brevoApiKey.trim().isEmpty()) {
+            sendEmailViaBrevo(to, subject, text);
+            return;
+        }
+
         if (mailUsername == null || mailUsername.trim().isEmpty()) {
             if (devFallback) {
                 logger.info("====== DEV MAIL SENDER (No credentials configured) ======");
@@ -163,5 +171,50 @@ public class EmailService {
         } else {
             throw new RuntimeException("We couldn't send the verification email at the moment. Please try again in a few minutes.");
         }
+    }
+
+    private void sendEmailViaBrevo(String to, String subject, String text) {
+        logger.info("Attempting to send email via Brevo HTTP API to {}", to);
+        try {
+            String senderEmail = (mailUsername != null && !mailUsername.trim().isEmpty()) ? mailUsername : "noreply@voteindia.com";
+            String payload = "{"
+                    + "\"sender\":{\"name\":\"VOTE INDIA\",\"email\":\"" + escapeJson(senderEmail) + "\"},"
+                    + "\"to\":[{\"email\":\"" + escapeJson(to) + "\"}],"
+                    + "\"subject\":\"" + escapeJson(subject) + "\","
+                    + "\"textContent\":\"" + escapeJson(text) + "\""
+                    + "}";
+
+            java.net.http.HttpClient client = java.net.http.HttpClient.newHttpClient();
+            java.net.http.HttpRequest request = java.net.http.HttpRequest.newBuilder()
+                    .uri(java.net.URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .header("api-key", brevoApiKey)
+                    .header("Content-Type", "application/json")
+                    .header("Accept", "application/json")
+                    .POST(java.net.http.HttpRequest.BodyPublishers.ofString(payload, java.nio.charset.StandardCharsets.UTF_8))
+                    .build();
+
+            java.net.http.HttpResponse<String> response = client.send(request, java.net.http.HttpResponse.BodyHandlers.ofString());
+
+            if (response.statusCode() >= 200 && response.statusCode() < 300) {
+                logger.info("Email sent successfully to {} via Brevo API (Status: {})", to, response.statusCode());
+            } else {
+                logger.error("Failed to send email via Brevo. Status: {}, Response: {}", response.statusCode(), response.body());
+                throw new RuntimeException("Brevo API returned status code " + response.statusCode());
+            }
+        } catch (Exception e) {
+            logger.error("Error sending email via Brevo: {}", e.getMessage(), e);
+            throw new RuntimeException("We couldn't send the verification email at the moment. Please try again in a few minutes.", e);
+        }
+    }
+
+    private String escapeJson(String input) {
+        if (input == null) return "";
+        return input.replace("\\", "\\\\")
+                    .replace("\"", "\\\"")
+                    .replace("\b", "\\b")
+                    .replace("\f", "\\f")
+                    .replace("\n", "\\n")
+                    .replace("\r", "\\r")
+                    .replace("\t", "\\t");
     }
 }
