@@ -16,7 +16,9 @@ import com.chhavi.dao.AuthDao;
 import com.chhavi.dao.UserDao;
 import com.chhavi.pojo.PasswordResetOtp;
 import com.chhavi.pojo.User;
+import com.chhavi.pojo.PendingRegistration;
 import com.chhavi.repository.PasswordResetOtpRepository;
+import com.chhavi.repository.PendingRegistrationRepository;
 import com.chhavi.utils.EmailService;
 
 @Repository
@@ -27,18 +29,22 @@ public class AuthDaoImpl implements AuthDao {
     private final UserDao userDao;
     private final PasswordEncoder passwordEncoder;
     private final PasswordResetOtpRepository otpRepository;
+    private final PendingRegistrationRepository pendingRepository;
     private final EmailService emailService;
 
     public AuthDaoImpl(UserDao userDao, PasswordEncoder passwordEncoder, 
-                       PasswordResetOtpRepository otpRepository, EmailService emailService) {
+                       PasswordResetOtpRepository otpRepository,
+                       PendingRegistrationRepository pendingRepository,
+                       EmailService emailService) {
         this.userDao = userDao;
         this.passwordEncoder = passwordEncoder;
         this.otpRepository = otpRepository;
+        this.pendingRepository = pendingRepository;
         this.emailService = emailService;
     }
 
     @Override
-    public User registerUser(User user) {
+    public PendingRegistration registerUser(User user) {
         if (user == null) {
             throw new IllegalArgumentException("User cannot be null");
         }
@@ -72,7 +78,7 @@ public class AuthDaoImpl implements AuthDao {
             throw new IllegalArgumentException("You must be at least 18 years old to register");
         }
 
-        // 2. Uniqueness checks
+        // 2. Uniqueness checks on users collection
         String normalizedEmail = user.getEmail().trim().toLowerCase();
         if (userDao.emailExists(normalizedEmail)) {
             throw new IllegalArgumentException("Email already registered");
@@ -88,35 +94,34 @@ public class AuthDaoImpl implements AuthDao {
             throw new IllegalArgumentException("Voter ID already registered");
         }
 
-        // 3. Normalization and setup
-        user.setEmail(normalizedEmail);
-        user.setFullName(user.getFullName().trim());
-        user.setMobile(normalizedMobile);
-        user.setVoterId(normalizedVoterId);
-        user.setPassword(passwordEncoder.encode(user.getPassword()));
+        // 3. Normalization and setup PendingRegistration
+        PendingRegistration pending = new PendingRegistration();
+        pending.setEmail(normalizedEmail);
+        pending.setFullName(user.getFullName().trim());
+        pending.setMobile(normalizedMobile);
+        pending.setVoterId(normalizedVoterId);
+        pending.setPassword(passwordEncoder.encode(user.getPassword()));
+        pending.setDateOfBirth(user.getDateOfBirth());
+        pending.setProfileImage(user.getProfileImage());
 
-        user.setRole("VOTER");
-        user.setHasVoted(false);
-        user.setEmailVerified(false);
-        user.setAccountLocked(false);
-        user.setFailedLoginAttempts(0);
-        user.setLockTime(null);
-        
         // Generate secure 6 digit registration OTP
         SecureRandom random = new SecureRandom();
         int otpNum = 100000 + random.nextInt(900000);
-        user.setVerificationOtp(String.valueOf(otpNum));
-        user.setVerificationOtpExpiry(LocalDateTime.now().plusMinutes(10));
-        user.setVerificationOtpLastSentAt(LocalDateTime.now());
-        
-        user.setStatus("ACTIVE");
-        user.setCreatedAt(LocalDateTime.now());
-        user.setUpdatedAt(LocalDateTime.now());
+        pending.setOtp(String.valueOf(otpNum));
+        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        pending.setCreatedAt(LocalDateTime.now());
+
+        // 4. Try sending verification email BEFORE saving to MongoDB
+        emailService.sendVerificationOtpEmail(pending);
 
         try {
-            return userDao.saveUser(user);
+            // Automatically clean expired pending registrations
+            pendingRepository.deleteByOtpExpiryBefore(LocalDateTime.now());
+            // Delete existing pending registrations with same email to allow retry
+            pendingRepository.deleteByEmail(normalizedEmail);
+            return pendingRepository.save(pending);
         } catch (Exception e) {
-            logger.error("User registration database save failed for email {}: {}", user.getEmail(), e.getMessage(), e);
+            logger.error("Pending registration database save failed for email {}: {}", pending.getEmail(), e.getMessage(), e);
             throw e;
         }
     }
@@ -127,26 +132,48 @@ public class AuthDaoImpl implements AuthDao {
             return false;
         }
 
-        User user = userDao.findByEmail(email.trim().toLowerCase()).orElse(null);
-        if (user == null) {
+        String normalizedEmail = email.trim().toLowerCase();
+        PendingRegistration pending = pendingRepository.findByEmail(normalizedEmail).orElse(null);
+        if (pending == null) {
             return false;
         }
 
-        if (user.getVerificationOtp() == null || !user.getVerificationOtp().equals(otp.trim())) {
+        if (pending.getOtp() == null || !pending.getOtp().equals(otp.trim())) {
             return false;
         }
 
-        if (user.getVerificationOtpExpiry() != null && user.getVerificationOtpExpiry().isBefore(LocalDateTime.now())) {
+        if (pending.getOtpExpiry() != null && pending.getOtpExpiry().isBefore(LocalDateTime.now())) {
             return false;
         }
 
+        // Create user from pending registration
+        User user = new User();
+        user.setEmail(pending.getEmail());
+        user.setFullName(pending.getFullName());
+        user.setPassword(pending.getPassword());
+        user.setMobile(pending.getMobile());
+        user.setVoterId(pending.getVoterId());
+        user.setDateOfBirth(pending.getDateOfBirth());
+        user.setProfileImage(pending.getProfileImage());
+
+        user.setRole("VOTER");
+        user.setHasVoted(false);
         user.setEmailVerified(true);
-        user.setVerificationOtp(null);
-        user.setVerificationOtpExpiry(null);
+        user.setAccountLocked(false);
+        user.setFailedLoginAttempts(0);
+        user.setLockTime(null);
+        user.setStatus("ACTIVE");
+        user.setCreatedAt(LocalDateTime.now());
         user.setUpdatedAt(LocalDateTime.now());
 
-        userDao.saveUser(user);
-        return true;
+        try {
+            userDao.saveUser(user);
+            pendingRepository.deleteByEmail(normalizedEmail);
+            return true;
+        } catch (Exception e) {
+            logger.error("Failed to save verified user to database for email {}: {}", normalizedEmail, e.getMessage(), e);
+            throw e;
+        }
     }
 
     @Override

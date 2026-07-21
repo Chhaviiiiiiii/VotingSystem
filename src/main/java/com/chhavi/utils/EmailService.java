@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import com.chhavi.pojo.User;
 import com.chhavi.pojo.Election;
 import com.chhavi.pojo.Candidate;
+import com.chhavi.pojo.PendingRegistration;
 import java.util.List;
 import java.util.Map;
 
@@ -33,8 +34,15 @@ public class EmailService {
         this.mailSender = mailSender;
     }
 
+    public void sendVerificationOtpEmail(PendingRegistration pending) {
+        sendVerificationOtpEmail(pending.getEmail(), pending.getFullName(), pending.getOtp());
+    }
+
     public void sendVerificationOtpEmail(User user) {
-        String otp = user.getVerificationOtp();
+        sendVerificationOtpEmail(user.getEmail(), user.getFullName(), user.getVerificationOtp());
+    }
+
+    public void sendVerificationOtpEmail(String email, String fullName, String otp) {
         String subject = "Verify Your Email - VOTE INDIA";
         String message = "VOTE INDIA\n"
                 + "Digital Voting Portal\n\n"
@@ -45,7 +53,7 @@ public class EmailService {
                 + "Do not share this code with anyone.\n\n"
                 + "Best regards,\nVOTE INDIA Team";
 
-        sendEmail(user.getEmail(), subject, message);
+        sendEmail(email, subject, message);
     }
 
     public void sendOtpEmail(String email, String otp) {
@@ -115,24 +123,45 @@ public class EmailService {
             }
         }
 
-        try {
-            SimpleMailMessage mailMessage = new SimpleMailMessage();
-            mailMessage.setFrom(mailUsername);
-            mailMessage.setTo(to);
-            mailMessage.setSubject(subject);
-            mailMessage.setText(text);
-            mailSender.send(mailMessage);
-        } catch (Exception e) {
-            logger.error("Failed to send email to {}. Error: {}", to, e.getMessage(), e);
-            if (devFallback) {
-                logger.info("====== DEV MAIL SENDER FALLBACK ======");
-                logger.info("To: {}", to);
-                logger.info("Subject: {}", subject);
-                logger.info("Body:\n{}", text);
-                logger.info("======================================");
-            } else {
-                throw new RuntimeException("Failed to send verification email, please try again: " + e.getMessage(), e);
+        int maxAttempts = 3;
+        int attempt = 0;
+        Exception lastException = null;
+
+        while (attempt < maxAttempts) {
+            attempt++;
+            try {
+                SimpleMailMessage mailMessage = new SimpleMailMessage();
+                mailMessage.setFrom(mailUsername);
+                mailMessage.setTo(to);
+                mailMessage.setSubject(subject);
+                mailMessage.setText(text);
+                mailSender.send(mailMessage);
+                logger.info("Email sent successfully to {} on attempt {}", to, attempt);
+                return;
+            } catch (Exception e) {
+                lastException = e;
+                logger.warn("Failed to send email to {} on attempt {} of {}. Error: {}", to, attempt, maxAttempts, e.getMessage());
+                if (attempt < maxAttempts) {
+                    long backoffMs = (long) Math.pow(2, attempt) * 1000;
+                    try {
+                        Thread.sleep(backoffMs);
+                    } catch (InterruptedException ie) {
+                        Thread.currentThread().interrupt();
+                        break;
+                    }
+                }
             }
+        }
+
+        logger.error("Failed to send email to {} after {} attempts. Error details logged on server.", to, maxAttempts, lastException);
+        if (devFallback) {
+            logger.info("====== DEV MAIL SENDER FALLBACK ======");
+            logger.info("To: {}", to);
+            logger.info("Subject: {}", subject);
+            logger.info("Body:\n{}", text);
+            logger.info("======================================");
+        } else {
+            throw new RuntimeException("We couldn't send the verification email at the moment. Please try again in a few minutes.");
         }
     }
 }

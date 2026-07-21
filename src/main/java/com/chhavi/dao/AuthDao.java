@@ -1,10 +1,11 @@
 package com.chhavi.dao;
 
 import com.chhavi.pojo.User;
+import com.chhavi.pojo.PendingRegistration;
 
 public interface AuthDao {
 
-    User registerUser(User user);
+    PendingRegistration registerUser(User user);
 
     boolean verifyEmailOtp(String email, String otp);
 

@@ -17,6 +17,8 @@ import com.chhavi.dto.ForgotPasswordDto;
 import com.chhavi.dto.OtpVerificationDto;
 import com.chhavi.dto.ResetPasswordDto;
 import com.chhavi.pojo.User;
+import com.chhavi.pojo.PendingRegistration;
+import com.chhavi.repository.PendingRegistrationRepository;
 import com.chhavi.utils.EmailService;
 
 import jakarta.servlet.http.HttpServletRequest;
@@ -28,11 +30,15 @@ public class AuthController {
 
     private final AuthDao authDao;
     private final UserDao userDao;
+    private final PendingRegistrationRepository pendingRepository;
     private final EmailService emailService;
 
-    public AuthController(AuthDao authDao, UserDao userDao, EmailService emailService) {
+    public AuthController(AuthDao authDao, UserDao userDao, 
+                          PendingRegistrationRepository pendingRepository, 
+                          EmailService emailService) {
         this.authDao = authDao;
         this.userDao = userDao;
+        this.pendingRepository = pendingRepository;
         this.emailService = emailService;
     }
 
@@ -72,18 +78,21 @@ public class AuthController {
                 user.setProfileImage("https://api.dicebear.com/7.x/adventurer/svg?seed=" + user.getFullName().replaceAll("\\s+", ""));
             }
 
-            User savedUser = authDao.registerUser(user);
-            emailService.sendVerificationOtpEmail(savedUser);
+            PendingRegistration savedPending = authDao.registerUser(user);
             
             // Set email in session for OTP verification safety
-            request.getSession().setAttribute("pendingVerificationEmail", savedUser.getEmail());
+            request.getSession().setAttribute("pendingVerificationEmail", savedPending.getEmail());
             
             return "redirect:/verify-email-otp";
         } catch (IllegalArgumentException e) {
             model.addAttribute("error", e.getMessage());
             return "register";
         } catch (Exception e) {
-            model.addAttribute("error", "Registration failed due to a database or system error: " + e.getMessage());
+            String errMsg = e.getMessage();
+            if (errMsg == null || !errMsg.contains("We couldn't send the verification email")) {
+                errMsg = "We couldn't send the verification email at the moment. Please try again in a few minutes.";
+            }
+            model.addAttribute("error", errMsg);
             return "register";
         }
     }
@@ -127,15 +136,20 @@ public class AuthController {
             HttpServletRequest request,
             Model model) {
 
-        User user = userDao.findByEmail(email.trim().toLowerCase()).orElse(null);
-        if (user == null) {
-            model.addAttribute("error", "User not found.");
+        String normalizedEmail = email.trim().toLowerCase();
+        PendingRegistration pending = pendingRepository.findByEmail(normalizedEmail).orElse(null);
+        if (pending == null) {
+            if (userDao.findByEmail(normalizedEmail).isPresent()) {
+                model.addAttribute("error", "This email is already verified and registered.");
+                return "redirect:/login";
+            }
+            model.addAttribute("error", "No pending registration found for this email.");
             return "redirect:/register";
         }
 
-        // Resend cooldown checks (60 seconds)
-        if (user.getVerificationOtpLastSentAt() != null && 
-            user.getVerificationOtpLastSentAt().plusSeconds(60).isAfter(LocalDateTime.now())) {
+        // Resend cooldown checks (60 seconds) using createdAt as the last sent/created time
+        if (pending.getCreatedAt() != null && 
+            pending.getCreatedAt().plusSeconds(60).isAfter(LocalDateTime.now())) {
             model.addAttribute("error", "Please wait 60 seconds before requesting another OTP.");
             OtpVerificationDto dto = new OtpVerificationDto();
             dto.setEmail(email);
@@ -146,16 +160,20 @@ public class AuthController {
         // Generate a new OTP and expiry
         SecureRandom random = new SecureRandom();
         int otpNum = 100000 + random.nextInt(900000);
-        user.setVerificationOtp(String.valueOf(otpNum));
-        user.setVerificationOtpExpiry(LocalDateTime.now().plusMinutes(10));
-        user.setVerificationOtpLastSentAt(LocalDateTime.now());
-        userDao.saveUser(user);
+        pending.setOtp(String.valueOf(otpNum));
+        pending.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+        pending.setCreatedAt(LocalDateTime.now());
 
         try {
-            emailService.sendVerificationOtpEmail(user);
+            emailService.sendVerificationOtpEmail(pending);
+            pendingRepository.save(pending);
             model.addAttribute("success", "A new verification code has been sent to your email.");
         } catch (Exception e) {
-            model.addAttribute("error", "Failed to send verification email, please try again: " + e.getMessage());
+            String errMsg = e.getMessage();
+            if (errMsg == null || !errMsg.contains("We couldn't send the verification email")) {
+                errMsg = "We couldn't send the verification email at the moment. Please try again in a few minutes.";
+            }
+            model.addAttribute("error", errMsg);
         }
         
         OtpVerificationDto dto = new OtpVerificationDto();
